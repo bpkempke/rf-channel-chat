@@ -16,7 +16,7 @@ def remove_socket(sock):
 
 #Function to broadcast chat messages to all connected clients
 def broadcast_data (i_sample, q_sample):
-    message = struct.pack("<hh",i_sample,q_sample)
+    message = hex(i_sample)[2:] + hex(q_sample)[2:] + '\n'
     #Do not send the message to master socket and the client who has send us the message
     for socket in connection_list:
         if socket != server_socket:
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     # List to keep track of socket descriptors
     connection_list = []
     RECV_BUFFER = 4096 # Advisable to keep it as an exponent of 2
-    PORT = 5000
+    PORT = 1234
 
     # Strategy:
     #   1: Assume everyone is running at the same sample rate
@@ -81,12 +81,13 @@ if __name__ == "__main__":
                     sock_idx = connection_list.index(sock)
                     data = sock.recv(RECV_BUFFER)
                     client_buffers[sock_idx] += data
-                    if len(client_buffers[sock_idx]) >= 4:
+                    print "Got %d bytes of data: %s" % (len(data), data)
+                    if len(client_buffers[sock_idx]) >= 9:
                         #Pull a sample out the front of the array
                         client_num_tx[sock_idx] = client_num_tx[sock_idx] + 1
-                        cur_i, = struct.unpack("<h", client_buffers[sock_idx][0:2])
-                        cur_q, = struct.unpack("<h", client_buffers[sock_idx][2:4])
-                        client_buffers[sock_idx] = client_buffers[sock_idx][4:]
+                        cur_i = int(client_buffers[sock_idx][0:4],16)
+                        cur_q = int(client_buffers[sock_idx][4:8],16)
+                        client_buffers[sock_idx] = client_buffers[sock_idx][9:]
 
                         #Add sample to the channel, currently just accounting for some path loss
                         agg_tx_i = agg_tx_i + cur_i/10
