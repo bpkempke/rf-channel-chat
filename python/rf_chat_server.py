@@ -16,7 +16,9 @@ def remove_socket(sock):
 
 #Function to broadcast chat messages to all connected clients
 def broadcast_data (i_sample, q_sample):
-    message = hex(i_sample)[2:] + hex(q_sample)[2:] + '\n'
+    print "Sample #%d" % client_num_tx[0]
+    message = format(i_sample, '04X') + format(q_sample, '04X') + '\n'
+    log_file.write(message)
     #Do not send the message to master socket and the client who has send us the message
     for socket in connection_list:
         if socket != server_socket:
@@ -28,6 +30,9 @@ def broadcast_data (i_sample, q_sample):
     
  
 if __name__ == "__main__":
+
+    log_file = open("server_log.out", 'w', 0)
+    log_file.truncate()
      
     # List to keep track of socket descriptors
     connection_list = []
@@ -75,13 +80,12 @@ if __name__ == "__main__":
             #Some incoming message from a client
             else:
                 # Data recieved from client, process it
-                #try:
+                try:
                     #In Windows, sometimes when a TCP program closes abruptly,
                     # a "Connection reset by peer" exception will be thrown
                     sock_idx = connection_list.index(sock)
                     data = sock.recv(RECV_BUFFER)
                     client_buffers[sock_idx] += data
-                    print "Got %d bytes of data: %s" % (len(data), data)
                     if len(client_buffers[sock_idx]) >= 9:
                         #Pull a sample out the front of the array
                         client_num_tx[sock_idx] = client_num_tx[sock_idx] + 1
@@ -99,11 +103,11 @@ if __name__ == "__main__":
                             agg_tx_i = 0
                             agg_tx_q = 0
                  
-                #except:
-                #    #No longer need to let everyone know a connection has been dropped
-                #    #broadcast_data(sock, "Client (%s, %s) is offline" % addr)
-                #    print "Client (%s, %s) is offline" % addr
-                #    remove_socket(sock)
-                #    continue
+                except:
+                    #No longer need to let everyone know a connection has been dropped
+                    #broadcast_data(sock, "Client (%s, %s) is offline" % addr)
+                    print "Client (%s, %s) is offline" % addr
+                    remove_socket(sock)
+                    continue
      
     server_socket.close()
