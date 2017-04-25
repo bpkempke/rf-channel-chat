@@ -42,7 +42,7 @@ if __name__ == "__main__":
     #Pull in injection file if specified
     injection_data = None
     injection_data_idx = 0
-    if args.inject_data:
+    if args.inject_data is not None:
         injection_data = np.fromfile(args.inject_data, dtype=np.dtype('i2'))
  
     log_file = open("server_log.out", 'w', 0)
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                         #Add the sample to the channel and push out to everyone listening
                         if len(client_num_tx) == 1 or client_num_tx[1:] == client_num_tx[:-1]:
                             #Inject in specified signal if requested
-                            if injection_data:
+                            if injection_data is not None:
                                 agg_tx_i += injection_data[injection_data_idx]
                                 agg_tx_q += injection_data[injection_data_idx+1]
                                 injection_data_idx += 2
