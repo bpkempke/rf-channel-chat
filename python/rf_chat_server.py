@@ -1,12 +1,14 @@
 # Tcp Chat server
 # Initial code from: http://www.binarytides.com/code-chat-application-server-client-sockets-python/
  
+import argparse
 import socket, select
 import struct
- 
+import numpy as np
+
 client_num_tx = []
 client_buffers = []
-
+    
 def remove_socket(sock):
     sock.close()
     which_closed = connection_list.index(sock)
@@ -16,7 +18,9 @@ def remove_socket(sock):
 
 #Function to broadcast chat messages to all connected clients
 def broadcast_data (i_sample, q_sample):
-    print "Sample #%d" % client_num_tx[0]
+    i_sample = 65536 + i_sample if i_sample < 0 else i_sample
+    q_sample = 65536 + q_sample if q_sample < 0 else q_sample
+    print "Sample #%d: %d, %d" % (client_num_tx[0], i_sample, q_sample)
     message = format(i_sample, '04X') + format(q_sample, '04X') + '\n'
     log_file.write(message)
     #Do not send the message to master socket and the client who has send us the message
@@ -30,7 +34,17 @@ def broadcast_data (i_sample, q_sample):
     
  
 if __name__ == "__main__":
-
+    #One option right now: Optional datafile of complex shorts to inject
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--inject-data', default=None)
+    args = parser.parse_args()
+     
+    #Pull in injection file if specified
+    injection_data = None
+    injection_data_idx = 0
+    if args.inject_data:
+        injection_data = np.fromfile(args.inject_data, dtype=np.dtype('i2'))
+ 
     log_file = open("server_log.out", 'w', 0)
     log_file.truncate()
      
@@ -79,8 +93,8 @@ if __name__ == "__main__":
              
             #Some incoming message from a client
             else:
-                # Data recieved from client, process it
-                try:
+                ## Data recieved from client, process it
+                #try:
                     #In Windows, sometimes when a TCP program closes abruptly,
                     # a "Connection reset by peer" exception will be thrown
                     sock_idx = connection_list.index(sock)
@@ -97,17 +111,30 @@ if __name__ == "__main__":
                         agg_tx_i = agg_tx_i + cur_i/10
                         agg_tx_q = agg_tx_q + cur_q/10
 
+                        ##Add some noise as well
+                        #agg_tx_i = agg_tx_i + int(np.random.normal(0, 100, 1))
+                        #agg_tx_q = agg_tx_q + int(np.random.normal(0, 100, 1))
+
                         #Add the sample to the channel and push out to everyone listening
                         if len(client_num_tx) == 1 or client_num_tx[1:] == client_num_tx[:-1]:
+                            #Inject in specified signal if requested
+                            if injection_data:
+                                agg_tx_i += injection_data[injection_data_idx]
+                                agg_tx_q += injection_data[injection_data_idx+1]
+                                injection_data_idx += 2
+                                if injection_data_idx >= len(injection_data):
+                                    injection_data_idx = 0
+
+                            #Push data to subscribers and reset
                             broadcast_data(agg_tx_i, agg_tx_q)
                             agg_tx_i = 0
                             agg_tx_q = 0
                  
-                except:
-                    #No longer need to let everyone know a connection has been dropped
-                    #broadcast_data(sock, "Client (%s, %s) is offline" % addr)
-                    print "Client (%s, %s) is offline" % addr
-                    remove_socket(sock)
-                    continue
+                #except:
+                #    #No longer need to let everyone know a connection has been dropped
+                #    #broadcast_data(sock, "Client (%s, %s) is offline" % addr)
+                #    print "Client (%s, %s) is offline" % addr
+                #    remove_socket(sock)
+                #    continue
      
     server_socket.close()
